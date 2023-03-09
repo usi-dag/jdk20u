@@ -114,6 +114,12 @@
 # include <malloc.h>
 #endif
 
+/* MODIFY START */ 
+#include <papi.h>
+#include <sys/syscall.h>
+#include <stdlib.h>
+/* MODIFY END */ 
+
 #ifndef _GNU_SOURCE
   #define _GNU_SOURCE
   #include <sched.h>
@@ -676,8 +682,33 @@ bool os::Linux::manually_expand_stack(JavaThread * t, address addr) {
 //////////////////////////////////////////////////////////////////////////////
 // create new thread
 
+/* MODIFY START */
+static unsigned long get_thread_id(void) {
+	return (unsigned long)syscall(__NR_gettid);
+}
+static void handle_error(int return_value)
+{
+  printf("PAPI error %d: %s\n", return_value, PAPI_strerror(return_value));
+  exit(1);
+}
+/* MODIFY END */
+
 // Thread start routine for all newly created threads
 static void *thread_native_entry(Thread *thread) {
+
+  /* MODIFY START */ 
+  if(thread->is_Java_thread()) {
+    int return_value;
+    return_value = PAPI_library_init(PAPI_VER_CURRENT);
+    if (return_value != PAPI_VER_CURRENT) {
+      handle_error(return_value);
+    }
+    return_value = PAPI_thread_init(&get_thread_id);
+    if (return_value != PAPI_OK) {
+      handle_error(return_value);
+    }
+  }
+  /* MODIFY END */ 
 
   thread->record_stack_base_and_size();
 

@@ -142,10 +142,6 @@ $(call FillFindCache, $(JVM_SRC_DIRS))
 ################################################################################
 # Now set up the actual compilation of the main hotspot native library
 
-#export PAPI_DIR=/home/leonardo/experiments/thesis/papi/src/install
-#export PATH=${PAPI_DIR}/bin:$PATH
-#export LD_LIBRARY_PATH=${PAPI_DIR}/lib:$LD_LIBRARY_PATH
-
 $(eval $(call SetupJdkLibrary, BUILD_LIBJVM, \
     NAME := jvm, \
     TOOLCHAIN := TOOLCHAIN_LINK_CXX, \

@@ -711,14 +711,14 @@ static void *thread_native_entry(Thread *thread) {
     if(return_value != PAPI_OK) {
       handle_error(return_value);
     }
-    int event_set = PAPI_NULL;
-    return_value = PAPI_create_eventset(&event_set);
+    thread->_event_set = PAPI_NULL;
+    return_value = PAPI_create_eventset(&thread->_event_set);
     if(return_value != PAPI_OK) {
-      handle_error(1);
+      handle_error(return_value);
     }
-    return_value = PAPI_add_event(event_set, PAPI_REF_CYC);
+    return_value = PAPI_add_event(thread->_event_set, PAPI_REF_CYC);
     if(return_value != PAPI_OK) {
-      handle_error(1);
+      handle_error(return_value);
     }
   }
   /* MODIFY END */ 

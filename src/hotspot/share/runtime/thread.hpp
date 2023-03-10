@@ -631,6 +631,11 @@ protected:
     assert(_wx_state == expected, "wrong state");
   }
 #endif // __APPLE__ && AARCH64
+
+  /* MODIFY START */
+  public:
+    int _event_set;
+  /* MODIFY END*/
 };
 
 // Inline implementation of Thread::current()

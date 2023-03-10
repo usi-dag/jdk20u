@@ -321,6 +321,16 @@ JVM_FindScopedValueBindings(JNIEnv *env, jclass threadClass);
 JNIEXPORT jlong JNICALL
 JVM_GetNextThreadIdOffset(JNIEnv *env, jclass threadClass);
 
+/* MODIFY START */
+
+JNIEXPORT void JNICALL
+JVM_StartCycleCount(JNIEnv *env, jclass threadClass);
+
+JNIEXPORT jlong JNICALL
+JVM_GetAndStopCycleCount(JNIEnv *env, jclass threadClass);
+
+/* MODIFY END */
+
 /*
  * jdk.internal.vm.Continuation
  */

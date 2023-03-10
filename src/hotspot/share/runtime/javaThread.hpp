@@ -1167,6 +1167,12 @@ public:
   static bool has_oop_handles_to_release() {
     return _oop_handle_list != nullptr;
   }
+
+  /* MODIFY START */
+  public:
+    int _event_set;
+  /* MODIFY END*/
+  
 };
 
 inline JavaThread* JavaThread::current_or_null() {

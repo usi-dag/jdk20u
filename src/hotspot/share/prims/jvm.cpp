@@ -112,6 +112,10 @@
 
 #include <errno.h>
 
+/* MODIFY START */ 
+#include <papi.h>
+/* MODIFY END */ 
+
 /*
   NOTE about use of any ctor or function call that can trigger a safepoint/GC:
   such ctors and calls MUST NOT come between an oop declaration/init and its
@@ -3113,6 +3117,32 @@ JVM_END
 JVM_ENTRY(jlong, JVM_GetNextThreadIdOffset(JNIEnv* env, jclass threadClass))
   return ThreadIdentifier::unsafe_offset();
 JVM_END
+
+/* MODIFY START */
+
+static void papi_handle_error(int return_value)
+{
+  printf("PAPI error %d: %s\n", return_value, PAPI_strerror(return_value));
+  exit(1);
+}
+
+JVM_ENTRY(void, JVM_StartCycleCount(JNIEnv *env, jclass threadClass))
+  int return_value = PAPI_start(thread->_event_set);
+  if(return_value != PAPI_OK) {
+    papi_handle_error(return_value);
+  }
+JVM_END
+
+JVM_ENTRY(jlong, JVM_GetAndStopCycleCount(JNIEnv *env, jclass threadClass))
+  long long count[1];
+  int return_value = PAPI_stop(thread->_event_set, count);
+  if(return_value != PAPI_OK) {
+    papi_handle_error(return_value);
+  }
+  return (int64_t)count[0];
+JVM_END
+
+/* MODIFY END */
 
 JVM_ENTRY(void, JVM_Interrupt(JNIEnv* env, jobject jthread))
   ThreadsListHandle tlh(thread);

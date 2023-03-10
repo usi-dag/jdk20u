@@ -3064,4 +3064,18 @@ public class Thread implements Runnable {
 
     // The address of the next thread identifier, see ThreadIdentifiers.
     private static native long getNextThreadIdOffset();
+
+    /* MODIFY START */
+     /**
+     * Starts the reference cycle counter.
+     */
+    public static native void startCycleCount();
+
+    /**
+     * Read the value of and then stop the reference cycle counter. 
+     * @return The count of the elapsed reference cycles.
+     */
+    public static native long getAndStopCycleCount();
+    
+    /* MODIFY END */
 }

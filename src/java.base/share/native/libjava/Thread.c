@@ -56,6 +56,10 @@ static JNINativeMethod methods[] = {
     {"findScopedValueBindings", "()" OBJ, (void *)&JVM_FindScopedValueBindings},
     {"ensureMaterializedForStackWalk",
                          "(" OBJ ")V", (void*)&JVM_EnsureMaterializedForStackWalk_func},
+    /* MODIFY START */
+    {"startCycleCount",           "()V",        (void *)&JVM_StartCycleCount},
+    {"getAndStopCycleCount",      "()J",        (void *)&JVM_GetAndStopCycleCount},
+    /* MODIFY END */
 };
 
 #undef THD

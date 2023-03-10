@@ -700,12 +700,25 @@ static void *thread_native_entry(Thread *thread) {
   if(thread->is_Java_thread()) {
     int return_value;
     return_value = PAPI_library_init(PAPI_VER_CURRENT);
-    if (return_value != PAPI_VER_CURRENT) {
+    if(return_value != PAPI_VER_CURRENT) {
       handle_error(return_value);
     }
     return_value = PAPI_thread_init(&get_thread_id);
-    if (return_value != PAPI_OK) {
+    if(return_value != PAPI_OK) {
       handle_error(return_value);
+    }
+    return_value = PAPI_register_thread();
+    if(return_value != PAPI_OK) {
+      handle_error(return_value);
+    }
+    int event_set = PAPI_NULL;
+    return_value = PAPI_create_eventset(&event_set);
+    if(return_value != PAPI_OK) {
+      handle_error(1);
+    }
+    return_value = PAPI_add_event(event_set, PAPI_REF_CYC);
+    if(return_value != PAPI_OK) {
+      handle_error(1);
     }
   }
   /* MODIFY END */ 

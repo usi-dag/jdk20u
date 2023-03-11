@@ -114,6 +114,7 @@
 
 /* MODIFY START */ 
 #include <papi.h>
+#include <sys/syscall.h>
 /* MODIFY END */ 
 
 /*
@@ -3120,26 +3121,61 @@ JVM_END
 
 /* MODIFY START */
 
-static void papi_handle_error(int return_value)
-{
-  printf("PAPI error %d: %s\n", return_value, PAPI_strerror(return_value));
-  exit(1);
+#define check_papi_error(papi_error, message) \
+	if (papi_error < 0) { \
+		fprintf( \
+			stderr, "%s - %s (%d)\n", \
+			message, PAPI_strerror(papi_error), papi_error \
+		); \
+		\
+		exit(1); \
+	}
+
+static unsigned long get_thread_id(void) {
+	return (unsigned long)syscall(__NR_gettid);
 }
 
-JVM_ENTRY(void, JVM_StartCycleCount(JNIEnv *env, jclass threadClass))
-  int return_value = PAPI_start(thread->_event_set);
-  if(return_value != PAPI_OK) {
-    papi_handle_error(return_value);
-  }
+JVM_ENTRY(void, JVM_InitialisePAPI(JNIEnv *env, jclass threadClass))
+  const int status = PAPI_library_init(PAPI_VER_CURRENT);
+	if (status != PAPI_VER_CURRENT && status > 0) {
+ 		fprintf(stderr, "error: PAPI library version mismatch\n");
+		exit(1);
+	}
+	check_papi_error(status, "PAPI library initialisation");
+  check_papi_error(
+    PAPI_thread_init(&get_thread_id),
+    "PAPI thread support initialisation"
+  );
+  check_papi_error(
+		PAPI_register_thread(),
+		"PAPI thread registration"
+	);
+  thread->_event_set = PAPI_NULL;
+  check_papi_error(
+		PAPI_create_eventset(&(thread->_event_set)),
+		"PAPI event set creation"
+	);
+  check_papi_error(
+		PAPI_add_event(thread->_event_set, PAPI_REF_CYC),
+		"PAPI event set specification"
+	);
 JVM_END
 
-JVM_ENTRY(jlong, JVM_GetAndStopCycleCount(JNIEnv *env, jclass threadClass))
-  long long count[1];
-  int return_value = PAPI_stop(thread->_event_set, count);
-  if(return_value != PAPI_OK) {
-    papi_handle_error(return_value);
-  }
-  return (int64_t)count[0];
+JVM_ENTRY(void, JVM_StartCycleCounter(JNIEnv *env, jclass threadClass))
+  check_papi_error(
+		PAPI_start(thread->_event_set),
+		"PAPI starting"
+	);
+JVM_END
+
+JVM_ENTRY(jlong, JVM_ReadCycleCounter(JNIEnv *env, jclass threadClass))
+  fprintf(stderr, "read: %lu\n", PAPI_thread_id());
+  long long numberCycles;
+  check_papi_error(
+    PAPI_read(thread->_event_set, &numberCycles),
+    "PAPI reading"
+  );
+  return (jlong)numberCycles;
 JVM_END
 
 /* MODIFY END */

@@ -57,8 +57,9 @@ static JNINativeMethod methods[] = {
     {"ensureMaterializedForStackWalk",
                          "(" OBJ ")V", (void*)&JVM_EnsureMaterializedForStackWalk_func},
     /* MODIFY START */
-    {"startCycleCount",           "()V",        (void *)&JVM_StartCycleCount},
-    {"getAndStopCycleCount",      "()J",        (void *)&JVM_GetAndStopCycleCount},
+    {"initialisePAPI",        "()V",        (void *)&JVM_InitialisePAPI},
+    {"startCycleCounter",     "()V",        (void *)&JVM_StartCycleCounter},
+    {"readCycleCounter",      "()J",        (void *)&JVM_ReadCycleCounter},
     /* MODIFY END */
 };
 

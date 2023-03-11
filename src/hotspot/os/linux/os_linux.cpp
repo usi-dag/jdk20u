@@ -683,45 +683,84 @@ bool os::Linux::manually_expand_stack(JavaThread * t, address addr) {
 // create new thread
 
 /* MODIFY START */
+
+#define check_papi_error(papi_error, message) \
+	if (papi_error < 0) { \
+		fprintf( \
+			stderr, "%s - %s (%d)\n", \
+			message, PAPI_strerror(papi_error), papi_error \
+		); \
+		\
+		exit(1); \
+	}
+
 static unsigned long get_thread_id(void) {
 	return (unsigned long)syscall(__NR_gettid);
 }
-static void handle_error(int return_value)
-{
-  printf("PAPI error %d: %s\n", return_value, PAPI_strerror(return_value));
-  exit(1);
+
+/*
+static inline void initialise_PAPI(Thread *thread) {
+  const int status = PAPI_library_init(PAPI_VER_CURRENT);
+	if (status != PAPI_VER_CURRENT && status > 0) {
+ 		fprintf(stderr, "error: PAPI library version mismatch\n");
+		exit(1);
+	}
+	check_papi_error(status, "PAPI library initialisation");
+  check_papi_error(
+    PAPI_thread_init(&get_thread_id),
+    "PAPI thread support initialisation"
+  );
+  check_papi_error(
+		PAPI_register_thread(),
+		"PAPI thread registration"
+	);
+  thread->_event_set = PAPI_NULL;
+  check_papi_error(
+		PAPI_create_eventset(&(thread->_event_set)),
+		"PAPI event set creation"
+	);
+  check_papi_error(
+		PAPI_add_event(thread->_event_set, PAPI_REF_CYC),
+		"PAPI event set specification"
+	);
 }
+*/
+
 /* MODIFY END */
 
 // Thread start routine for all newly created threads
 static void *thread_native_entry(Thread *thread) {
 
-  /* MODIFY START */ 
-  if(thread->is_Java_thread()) {
-    int return_value;
-    return_value = PAPI_library_init(PAPI_VER_CURRENT);
-    if(return_value != PAPI_VER_CURRENT) {
-      handle_error(return_value);
-    }
-    return_value = PAPI_thread_init(&get_thread_id);
-    if(return_value != PAPI_OK) {
-      handle_error(return_value);
-    }
-    return_value = PAPI_register_thread();
-    if(return_value != PAPI_OK) {
-      handle_error(return_value);
-    }
-    thread->_event_set = PAPI_NULL;
-    return_value = PAPI_create_eventset(&thread->_event_set);
-    if(return_value != PAPI_OK) {
-      handle_error(return_value);
-    }
-    return_value = PAPI_add_event(thread->_event_set, PAPI_REF_CYC);
-    if(return_value != PAPI_OK) {
-      handle_error(return_value);
-    }
-  }
-  /* MODIFY END */ 
+  /* MODIFY START */
+  const int status = PAPI_library_init(PAPI_VER_CURRENT);
+	if (status != PAPI_VER_CURRENT && status > 0) {
+ 		fprintf(stderr, "error: PAPI library version mismatch\n");
+		exit(1);
+	}
+	check_papi_error(status, "PAPI library initialisation");
+  check_papi_error(
+    PAPI_thread_init(&get_thread_id),
+    "PAPI thread support initialisation"
+  );
+  check_papi_error(
+		PAPI_register_thread(),
+		"PAPI thread registration"
+	);
+  thread->_event_set = PAPI_NULL;
+  check_papi_error(
+		PAPI_create_eventset(&(thread->_event_set)),
+		"PAPI event set creation"
+	);
+  check_papi_error(
+		PAPI_add_event(thread->_event_set, PAPI_REF_CYC),
+		"PAPI event set specification"
+	);
+  check_papi_error(
+		PAPI_start(thread->_event_set),
+		"PAPI starting"
+	);
+  fprintf(stderr, "start: %lu\n", PAPI_thread_id());
+  /* MODIFY END */
 
   thread->record_stack_base_and_size();
 
@@ -778,6 +817,10 @@ static void *thread_native_entry(Thread *thread) {
     os::current_thread_id(), (uintx) pthread_self());
 
   assert(osthread->pthread_id() != 0, "pthread_id was not set as expected");
+
+  /* MODIFY START */
+  //initialise_PAPI(thread);
+  /* MODIFY END */
 
   // call one more level start routine
   thread->call_run();

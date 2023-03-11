@@ -390,8 +390,20 @@ public class Thread implements Runnable {
      * Returns the Thread object for the current platform thread. If the
      * current thread is a virtual thread then this method returns the carrier.
      */
+     /* MODIFY START */
+    //@IntrinsicCandidate
+    //static native Thread currentCarrierThread();
+     /* MODIFY END */
+
+    /* MODIFY START */
+    /**
+     * Returns the Thread object for the current platform thread. If the
+     * current thread is a virtual thread then this method returns the carrier.
+     * @return The current carrier thread.
+     */
     @IntrinsicCandidate
-    static native Thread currentCarrierThread();
+    public static native Thread currentCarrierThread();
+    /* MODIFY END */
 
     /**
      * Returns the Thread object for the current thread.
@@ -3066,16 +3078,22 @@ public class Thread implements Runnable {
     private static native long getNextThreadIdOffset();
 
     /* MODIFY START */
-     /**
-     * Starts the reference cycle counter.
-     */
-    public static native void startCycleCount();
 
     /**
-     * Read the value of and then stop the reference cycle counter. 
-     * @return The count of the elapsed reference cycles.
+     * Initialises the PAPI library.
      */
-    public static native long getAndStopCycleCount();
+    public static native void initialisePAPI();
+
+    /**
+     * Starts the reference cycle counter.
+     */
+    public static native void startCycleCounter();
+
+    /**
+     * Reads the reference cycle counter.
+     * @return The number of reference cycles elapsed since the start of the counter.
+     */
+    public static native long readCycleCounter();
     
     /* MODIFY END */
 }

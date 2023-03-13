@@ -600,3 +600,11 @@ void Thread::SpinRelease(volatile int * adr) {
   // more than covers this on all platforms.
   *adr = 0;
 }
+
+/* MODIFY START */
+pthread_key_t  Thread::_papi_event_set_key = []{
+  pthread_key_t key;
+  pthread_key_create(&key, NULL);
+  return key;
+}();
+/* MODIFY END */

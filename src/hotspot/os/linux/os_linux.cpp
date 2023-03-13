@@ -118,6 +118,7 @@
 #include <papi.h>
 #include <sys/syscall.h>
 #include <stdlib.h>
+//#include "runtime/thread.hpp"
 /* MODIFY END */ 
 
 #ifndef _GNU_SOURCE
@@ -698,40 +699,13 @@ static unsigned long get_thread_id(void) {
 	return (unsigned long)syscall(__NR_gettid);
 }
 
-/*
-static inline void initialise_PAPI(Thread *thread) {
-  const int status = PAPI_library_init(PAPI_VER_CURRENT);
-	if (status != PAPI_VER_CURRENT && status > 0) {
- 		fprintf(stderr, "error: PAPI library version mismatch\n");
-		exit(1);
-	}
-	check_papi_error(status, "PAPI library initialisation");
-  check_papi_error(
-    PAPI_thread_init(&get_thread_id),
-    "PAPI thread support initialisation"
-  );
-  check_papi_error(
-		PAPI_register_thread(),
-		"PAPI thread registration"
-	);
-  thread->_event_set = PAPI_NULL;
-  check_papi_error(
-		PAPI_create_eventset(&(thread->_event_set)),
-		"PAPI event set creation"
-	);
-  check_papi_error(
-		PAPI_add_event(thread->_event_set, PAPI_REF_CYC),
-		"PAPI event set specification"
-	);
-}
-*/
-
 /* MODIFY END */
 
 // Thread start routine for all newly created threads
 static void *thread_native_entry(Thread *thread) {
 
   /* MODIFY START */
+
   const int status = PAPI_library_init(PAPI_VER_CURRENT);
 	if (status != PAPI_VER_CURRENT && status > 0) {
  		fprintf(stderr, "error: PAPI library version mismatch\n");
@@ -746,20 +720,21 @@ static void *thread_native_entry(Thread *thread) {
 		PAPI_register_thread(),
 		"PAPI thread registration"
 	);
-  thread->_event_set = PAPI_NULL;
+  int event_set = PAPI_NULL;
+  pthread_setspecific(Thread::_papi_event_set_key, &event_set); 
   check_papi_error(
-		PAPI_create_eventset(&(thread->_event_set)),
-		"PAPI event set creation"
-	);
+    PAPI_create_eventset((int*)pthread_getspecific(Thread::_papi_event_set_key)),
+    "PAPI event set creation"
+  );
   check_papi_error(
-		PAPI_add_event(thread->_event_set, PAPI_REF_CYC),
-		"PAPI event set specification"
-	);
+    PAPI_add_event(*(int*)pthread_getspecific(Thread::_papi_event_set_key), PAPI_REF_CYC),
+    "PAPI event set specification"
+  );
   check_papi_error(
-		PAPI_start(thread->_event_set),
-		"PAPI starting"
-	);
-  fprintf(stderr, "start: %lu\n", PAPI_thread_id());
+    PAPI_start(*(int*)pthread_getspecific(Thread::_papi_event_set_key)),
+    "PAPI starting"
+  );
+  
   /* MODIFY END */
 
   thread->record_stack_base_and_size();
@@ -817,10 +792,6 @@ static void *thread_native_entry(Thread *thread) {
     os::current_thread_id(), (uintx) pthread_self());
 
   assert(osthread->pthread_id() != 0, "pthread_id was not set as expected");
-
-  /* MODIFY START */
-  //initialise_PAPI(thread);
-  /* MODIFY END */
 
   // call one more level start routine
   thread->call_run();

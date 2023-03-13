@@ -115,6 +115,7 @@
 /* MODIFY START */ 
 #include <papi.h>
 #include <sys/syscall.h>
+#include <pthread.h>
 /* MODIFY END */ 
 
 /*
@@ -3169,10 +3170,9 @@ JVM_ENTRY(void, JVM_StartCycleCounter(JNIEnv *env, jclass threadClass))
 JVM_END
 
 JVM_ENTRY(jlong, JVM_ReadCycleCounter(JNIEnv *env, jclass threadClass))
-  fprintf(stderr, "read: %lu\n", PAPI_thread_id());
   long long numberCycles;
   check_papi_error(
-    PAPI_read(thread->_event_set, &numberCycles),
+    PAPI_read(*(int*)pthread_getspecific(Thread::_papi_event_set_key), &numberCycles),
     "PAPI reading"
   );
   return (jlong)numberCycles;

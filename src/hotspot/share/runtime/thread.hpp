@@ -43,6 +43,10 @@
 #include "jfr/support/jfrThreadExtension.hpp"
 #endif
 
+/* MODIFY START */
+#include <pthread.h> 
+/* MODIFY END */
+
 class HandleArea;
 class HandleMark;
 class ICRefillVerifier;
@@ -634,7 +638,7 @@ protected:
 
   /* MODIFY START */
   public:
-    int _event_set;
+    static pthread_key_t  _papi_event_set_key;
   /* MODIFY END*/
 };
 

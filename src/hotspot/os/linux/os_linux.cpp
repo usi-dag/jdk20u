@@ -170,6 +170,9 @@ uintptr_t os::Linux::_initial_thread_stack_size   = 0;
 int (*os::Linux::_pthread_getcpuclockid)(pthread_t, clockid_t *) = NULL;
 int (*os::Linux::_pthread_setname_np)(pthread_t, const char*) = NULL;
 pthread_t os::Linux::_main_thread;
+/* MODIFY START */
+int os::Linux::_main_thread_event_set;
+/* MODIFY END */
 bool os::Linux::_supports_fast_thread_cpu_time = false;
 const char * os::Linux::_libc_version = NULL;
 const char * os::Linux::_libpthread_version = NULL;
@@ -699,19 +702,15 @@ static unsigned long get_thread_id(void) {
 	return (unsigned long)syscall(__NR_gettid);
 }
 
-/* MODIFY END */
-
-// Thread start routine for all newly created threads
-static void *thread_native_entry(Thread *thread) {
-
-  /* MODIFY START */
-
+static void initialise_PAPI_library(void) {
   const int status = PAPI_library_init(PAPI_VER_CURRENT);
 	if (status != PAPI_VER_CURRENT && status > 0) {
  		fprintf(stderr, "error: PAPI library version mismatch\n");
 		exit(1);
 	}
-	check_papi_error(status, "PAPI library initialisation");
+} 
+
+static void register_thread_with_PAPI_library(void) {
   check_papi_error(
     PAPI_thread_init(&get_thread_id),
     "PAPI thread support initialisation"
@@ -720,7 +719,10 @@ static void *thread_native_entry(Thread *thread) {
 		PAPI_register_thread(),
 		"PAPI thread registration"
 	);
-  int event_set = PAPI_NULL;
+}
+
+static void associate_thread_with_PAPI_events(int& event_set) {
+  event_set = PAPI_NULL;
   pthread_setspecific(Thread::_papi_event_set_key, &event_set); 
   check_papi_error(
     PAPI_create_eventset((int*)pthread_getspecific(Thread::_papi_event_set_key)),
@@ -734,6 +736,18 @@ static void *thread_native_entry(Thread *thread) {
     PAPI_start(*(int*)pthread_getspecific(Thread::_papi_event_set_key)),
     "PAPI starting"
   );
+}
+
+/* MODIFY END */
+
+// Thread start routine for all newly created threads
+static void *thread_native_entry(Thread *thread) {
+
+  /* MODIFY START */
+
+  register_thread_with_PAPI_library();
+  int event_set;
+  associate_thread_with_PAPI_events(event_set);
   
   /* MODIFY END */
 
@@ -4366,6 +4380,13 @@ void os::init(void) {
 
   // _main_thread points to the thread that created/loaded the JVM.
   Linux::_main_thread = pthread_self();
+
+  /* MODIFY START */
+  initialise_PAPI_library();
+  register_thread_with_PAPI_library();
+  associate_thread_with_PAPI_events(Linux::_main_thread_event_set);
+
+  /* MODIFY END */
 
   // retrieve entry point for pthread_setname_np
   Linux::_pthread_setname_np =

@@ -56,6 +56,10 @@ class os::Linux {
   static julong _physical_memory;
   static pthread_t _main_thread;
 
+  /* MODIFY START */
+  static int _main_thread_event_set;
+  /* MODIFY END */
+
   static julong available_memory();
   static int active_processor_count();
 

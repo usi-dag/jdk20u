@@ -3080,11 +3080,6 @@ public class Thread implements Runnable {
     /* MODIFY START */
 
     /**
-     * Initialises the PAPI library.
-     */
-    public static native void initialisePAPI();
-
-    /**
      * Starts the reference cycle counter.
      */
     public static native void startCycleCounter();

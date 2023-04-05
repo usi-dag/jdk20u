@@ -3132,36 +3132,6 @@ JVM_END
 		exit(1); \
 	}
 
-static unsigned long get_thread_id(void) {
-	return (unsigned long)syscall(__NR_gettid);
-}
-
-JVM_ENTRY(void, JVM_InitialisePAPI(JNIEnv *env, jclass threadClass))
-  const int status = PAPI_library_init(PAPI_VER_CURRENT);
-	if (status != PAPI_VER_CURRENT && status > 0) {
- 		fprintf(stderr, "error: PAPI library version mismatch\n");
-		exit(1);
-	}
-	check_papi_error(status, "PAPI library initialisation");
-  check_papi_error(
-    PAPI_thread_init(&get_thread_id),
-    "PAPI thread support initialisation"
-  );
-  check_papi_error(
-		PAPI_register_thread(),
-		"PAPI thread registration"
-	);
-  thread->_event_set = PAPI_NULL;
-  check_papi_error(
-		PAPI_create_eventset(&(thread->_event_set)),
-		"PAPI event set creation"
-	);
-  check_papi_error(
-		PAPI_add_event(thread->_event_set, PAPI_REF_CYC),
-		"PAPI event set specification"
-	);
-JVM_END
-
 JVM_ENTRY(void, JVM_StartCycleCounter(JNIEnv *env, jclass threadClass))
   check_papi_error(
 		PAPI_start(thread->_event_set),

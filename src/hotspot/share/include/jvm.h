@@ -324,9 +324,6 @@ JVM_GetNextThreadIdOffset(JNIEnv *env, jclass threadClass);
 /* MODIFY START */
 
 JNIEXPORT void JNICALL
-JVM_InitialisePAPI(JNIEnv *env, jclass threadClass);
-
-JNIEXPORT void JNICALL
 JVM_StartCycleCounter(JNIEnv *env, jclass threadClass);
 
 JNIEXPORT jlong JNICALL

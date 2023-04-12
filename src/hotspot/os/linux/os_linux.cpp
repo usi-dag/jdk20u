@@ -118,7 +118,6 @@
 #include <papi.h>
 #include <sys/syscall.h>
 #include <stdlib.h>
-//#include "runtime/thread.hpp"
 /* MODIFY END */ 
 
 #ifndef _GNU_SOURCE
@@ -744,11 +743,11 @@ static void associate_thread_with_PAPI_events(int& event_set) {
 static void *thread_native_entry(Thread *thread) {
 
   /* MODIFY START */
-
+  /*
   register_thread_with_PAPI_library();
   int event_set;
   associate_thread_with_PAPI_events(event_set);
-  
+  */
   /* MODIFY END */
 
   thread->record_stack_base_and_size();
@@ -4382,6 +4381,7 @@ void os::init(void) {
   Linux::_main_thread = pthread_self();
 
   /* MODIFY START */
+
   initialise_PAPI_library();
   register_thread_with_PAPI_library();
   associate_thread_with_PAPI_events(Linux::_main_thread_event_set);

@@ -52,6 +52,12 @@
 #include "jfr/jfr.hpp"
 #endif
 
+/* MODIFY START */ 
+#include <papi.h>
+#include <sys/syscall.h>
+#include <stdlib.h>
+/* MODIFY END */ 
+
 #ifndef USE_LIBRARY_BASED_TLS_ONLY
 // Current thread is maintained as a thread-local variable
 THREAD_LOCAL Thread* Thread::_thr_current = NULL;
@@ -193,7 +199,82 @@ void Thread::unregister_thread_stack_with_NMT() {
   MemTracker::release_thread_stack(stack_end(), stack_size());
 }
 
+/* MODIFY START */
+
+#define check_papi_error(papi_error, message) \
+	if (papi_error < 0) { \
+		fprintf( \
+			stderr, "%s - %s (%d)\n", \
+			message, PAPI_strerror(papi_error), papi_error \
+		); \
+		\
+		exit(1); \
+	}
+
+static unsigned long get_thread_id(void) {
+	return (unsigned long)syscall(__NR_gettid);
+}
+
+static void register_thread_with_PAPI_library(void) {
+  check_papi_error(
+    PAPI_thread_init(&get_thread_id),
+    "PAPI thread support initialisation"
+  );
+  check_papi_error(
+		PAPI_register_thread(),
+		"PAPI thread registration"
+	);
+}
+
+static void associate_thread_with_PAPI_events(int& event_set) {
+  event_set = PAPI_NULL;
+  pthread_setspecific(Thread::_papi_event_set_key, &event_set); 
+  check_papi_error(
+    PAPI_create_eventset((int*)pthread_getspecific(Thread::_papi_event_set_key)),
+    "PAPI event set creation"
+  );
+  check_papi_error(
+    PAPI_add_event(*(int*)pthread_getspecific(Thread::_papi_event_set_key), PAPI_REF_CYC),
+    "PAPI event set specification"
+  );
+  check_papi_error(
+    PAPI_start(*(int*)pthread_getspecific(Thread::_papi_event_set_key)),
+    "PAPI starting"
+  );
+}
+
+static void unregister_thread_with_PAPI_library(void) {
+  long long dummy;
+  check_papi_error(
+    PAPI_stop(*(int*)pthread_getspecific(Thread::_papi_event_set_key), &dummy),
+    "PAPI stopping"
+  );
+  check_papi_error(
+    PAPI_cleanup_eventset(*(int*)pthread_getspecific(Thread::_papi_event_set_key)),
+    "PAPI event set clean-up"
+  );
+  check_papi_error(
+    PAPI_destroy_eventset((int*)pthread_getspecific(Thread::_papi_event_set_key)),
+    "PAPI event set destruction"
+  );
+  check_papi_error(
+		PAPI_unregister_thread(),
+		"PAPI thread deregistration"
+	);
+}
+
+/* MODIFY END */
+
 void Thread::call_run() {
+
+  /* MODIFY START */
+
+  register_thread_with_PAPI_library();
+  int event_set;
+  associate_thread_with_PAPI_events(event_set);
+
+  /* MODIFY END */
+
   DEBUG_ONLY(_run_state = CALL_RUN;)
 
   // At this point, Thread object should be fully initialized and
@@ -223,6 +304,12 @@ void Thread::call_run() {
   DEBUG_ONLY(_run_state = RUN;)
   this->run();
   // Returned from <ChildClass>::run(). Thread finished.
+
+  /* MODIFY START */
+
+  unregister_thread_with_PAPI_library();
+
+  /* MODIFY END */
 
   // Perform common tear-down actions
 

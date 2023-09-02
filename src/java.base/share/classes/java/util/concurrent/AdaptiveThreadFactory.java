@@ -98,7 +98,7 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
    * Comment
    */
   @FunctionalInterface
-  public interface Discriminator {
+  public interface ThreadTypeSelector {
     /**
      * Comment
      *
@@ -109,7 +109,7 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
      * @param   currentThreadType Comment
      * @return Comment
      */
-    ThreadType discriminate(
+    ThreadType selectThreadType(
       long numberParkingsInTimeWindow,
       long numberThreadCreationsInTimeWindow,
       double cpuUsage,
@@ -126,7 +126,7 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
   private int adaptiveThreadFactoryId;
   private long parkingTimeWindowLength; // in nanoseconds
   private long threadCreationTimeWindowLength; // in nanoseconds
-  private Discriminator discriminator;
+  private ThreadTypeSelector threadTypeSelector;
   private int cpuUsageSamplingPeriod; // in milliseconds
   private int numberRelevantCpuUsageSamples;
   private Optional<Integer> stateQueryInterval; // in milliseconds
@@ -158,7 +158,7 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
 
     private long parkingTimeWindowLength; // in milliseconds
     private long threadCreationTimeWindowLength; // in milliseconds
-    private Discriminator discriminator;
+    private ThreadTypeSelector threadTypeSelector;
     private int cpuUsageSamplingPeriod;
     private int numberRelevantCpuUsageSamples;
     private Optional<Integer> stateQueryInterval; // in milliseconds
@@ -172,7 +172,7 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
       this.parkingTimeWindowLength = getDefaultParkingTimeWindowLength();
       this.threadCreationTimeWindowLength =
         getDefaultThreadCreationTimeWindowLength();
-      this.discriminator = getDefaultDiscriminator();
+      this.threadTypeSelector = getDefaultThreadTypeSelector();
       this.cpuUsageSamplingPeriod = getDefaultCpuUsageSamplingPeriod();
       this.numberRelevantCpuUsageSamples =
         getDefaultNumberRelevantCpuUsageSamples();
@@ -210,13 +210,13 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
     /**
      * Comment
      *
-     * @param discriminator Comment
+     * @param threadTypeSelector Comment
      * @return Comment
      */
-    public AdaptiveThreadFactoryBuilder setDiscriminator(
-      Discriminator discriminator
+    public AdaptiveThreadFactoryBuilder setThreadTypeSelector(
+      ThreadTypeSelector threadTypeSelector
     ) {
-      this.discriminator = discriminator;
+      this.threadTypeSelector = threadTypeSelector;
       return this;
     }
 
@@ -295,7 +295,7 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
       AdaptiveThreadFactory adaptiveThreadFactory = new AdaptiveThreadFactory(
         this.parkingTimeWindowLength,
         this.threadCreationTimeWindowLength,
-        this.discriminator,
+        this.threadTypeSelector,
         this.cpuUsageSamplingPeriod,
         this.numberRelevantCpuUsageSamples,
         this.stateQueryInterval,
@@ -436,39 +436,17 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
     return 200;
   }
 
-  private static Discriminator getDefaultDiscriminator() {
-    Discriminator defaultDiscriminator = (
+  private static ThreadTypeSelector getDefaultThreadTypeSelector() {
+    ThreadTypeSelector defaultThreadTypeSelector = (
       long numberParkingsInTimeWindow,
       long numberThreadCreationsInTimeWindow,
       double cpuUsage,
       long numberFactoryThreads,
       Optional<AdaptiveThreadFactory.ThreadType> currentThreadType
     ) -> {
-      if (numberParkingsInTimeWindow < 600) {
-        return AdaptiveThreadFactory.ThreadType.PLATFORM;
-      } else if (numberParkingsInTimeWindow >= 1100) {
-        return AdaptiveThreadFactory.ThreadType.VIRTUAL;
-      } else {
-        if (
-          currentThreadType
-            .get()
-            .equals(AdaptiveThreadFactory.ThreadType.PLATFORM)
-        ) {
-          if (cpuUsage >= 0.5) {
-            return AdaptiveThreadFactory.ThreadType.PLATFORM;
-          } else {
-            return AdaptiveThreadFactory.ThreadType.VIRTUAL;
-          }
-        } else {
-          if (cpuUsage >= 0.425) {
-            return AdaptiveThreadFactory.ThreadType.PLATFORM;
-          } else {
-            return AdaptiveThreadFactory.ThreadType.VIRTUAL;
-          }
-        }
-      }
+      return ThreadType.PLATFORM;
     };
-    return defaultDiscriminator;
+    return defaultThreadTypeSelector;
   }
 
   private static int getDefaultCpuUsageSamplingPeriod() {
@@ -496,7 +474,7 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
    *
    * @param   parkingTimeWindowLength Comment
    * @param   threadCreationTimeWindowLength Comment
-   * @param   discriminator Comment
+   * @param   threadTypeSelector Comment
    * @param   cpuUsageSamplingPeriod Comment
    * @param   numberRelevantCpuUsageSamples Comment
    * @param   stateQueryInterval Comment
@@ -506,7 +484,7 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
   private AdaptiveThreadFactory(
     long parkingTimeWindowLength,
     long threadCreationTimeWindowLength,
-    Discriminator discriminator,
+    ThreadTypeSelector threadTypeSelector,
     int cpuUsageSamplingPeriod,
     int numberRelevantCpuUsageSamples,
     Optional<Integer> stateQueryInterval,
@@ -517,7 +495,7 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
       adaptiveThreadFactoryCounter.incrementAndGet();
     this.parkingTimeWindowLength = parkingTimeWindowLength * 1_000_000;
     this.threadCreationTimeWindowLength = threadCreationTimeWindowLength * 1_000_000;
-    this.discriminator = discriminator;
+    this.threadTypeSelector = threadTypeSelector;
     this.cpuUsageSamplingPeriod = cpuUsageSamplingPeriod;
     this.numberRelevantCpuUsageSamples = numberRelevantCpuUsageSamples;
     this.stateQueryInterval = stateQueryInterval;
@@ -535,7 +513,7 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
     this(
       getDefaultParkingTimeWindowLength(),
       getDefaultThreadCreationTimeWindowLength(),
-      getDefaultDiscriminator(),
+      getDefaultThreadTypeSelector(),
       getDefaultCpuUsageSamplingPeriod(),
       getDefaultNumberRelevantCpuUsageSamples(),
       getDefaultStateQueryInterval(),
@@ -671,7 +649,7 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
     } else {
       currentFactoryThreadType = Optional.empty();
     }
-    return this.discriminator.discriminate(
+    return this.threadTypeSelector.selectThreadType(
         getNumberParkingsInTimeWindow(),
         getNumberThreadCreationsInTimeWindow(),
         computeAverageCpuUsage(),
@@ -709,6 +687,8 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
     values.removeIf((Long value) -> value < lowerBound);
     return values.size();
   }
+
+  /* Getters */
 
   /**
    * Comment
@@ -754,10 +734,105 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
 
   /**
    * Comment
-   *
-   * @param   discriminator Comment
+   * @return Comment
    */
-  public void setDiscriminator(Discriminator discriminator) {
-    this.discriminator = discriminator;
+  public Optional<ThreadType> getCurrentThreadType() {
+    if (homogeneousExecutionModeInEffect()) {
+      return Optional.of(this.currentThreadType);
+    } else {
+      return Optional.empty();
+    }
   }
+
+  /* Setters */
+
+  /**
+     * Comment
+     *
+     * @param parkingTimeWindowLength Comment
+     */
+    public void setParkingTimeWindowLength(
+      long parkingTimeWindowLength
+    ) {
+      this.parkingTimeWindowLength = parkingTimeWindowLength;
+    }
+
+    /**
+     * Comment
+     *
+     * @param threadCreationTimeWindowLength Comment
+     */
+    public void setThreadCreationTimeWindowLength(
+      long threadCreationTimeWindowLength
+    ) {
+      this.threadCreationTimeWindowLength = threadCreationTimeWindowLength;
+    }
+
+    /**
+     * Comment
+     *
+     * @param threadTypeSelector Comment
+     */
+    public void setThreadTypeSelector(
+      ThreadTypeSelector threadTypeSelector
+    ) {
+      this.threadTypeSelector = threadTypeSelector;
+    }
+
+    /**
+     * Comment
+     *
+     * @param cpuUsageSamplingPeriod Comment
+     */
+    public void setCpuUsageSamplingPeriod(
+      int cpuUsageSamplingPeriod
+    ) {
+      this.cpuUsageSamplingPeriod = cpuUsageSamplingPeriod;
+    }
+
+    /**
+     * Comment
+     *
+     * @param numberRelevantCpuUsageSamples Comment
+     */
+    public void setNumberRelevantCpuUsageSamples(
+      int numberRelevantCpuUsageSamples
+    ) {
+      this.numberRelevantCpuUsageSamples = numberRelevantCpuUsageSamples;
+    }
+
+    /**
+     * Comment
+     *
+     * @param stateQueryInterval Comment
+     */
+    public void setStateQueryInterval(
+      int stateQueryInterval
+    ) {
+      this.stateQueryInterval = Optional.of(stateQueryInterval);
+    }
+
+    /**
+     * Comment
+     *
+     * @param numberRecurrencesUntilTransition Comment
+     */
+    public void setNumberRecurrencesUntilTransition(
+      int numberRecurrencesUntilTransition
+    ) {
+      this.numberRecurrencesUntilTransition =
+        Optional.of(numberRecurrencesUntilTransition);
+    }
+
+    /**
+     * Comment
+     *
+     * @param threadCreationHandler Comment
+     */
+    public void setThreadCreationHandler(
+      Runnable threadCreationHandler
+    ) {
+      this.threadCreationHandler = Optional.of(threadCreationHandler);
+    }
+
 }

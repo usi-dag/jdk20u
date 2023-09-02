@@ -220,9 +220,7 @@ public class LockSupport {
         setBlocker(t, blocker);
         try {
             /* MODIFY START */
-            if(AdaptiveThreadFactory.existsAssociation(Thread.currentThread())) {
-                AdaptiveThreadFactory.recordParking(Thread.currentThread());
-            }
+            AdaptiveThreadFactory.recordParkingIfExistsAssociation(Thread.currentThread());
             /* MODIFY END */
             if (t.isVirtual()) {
                 VirtualThreads.park();
@@ -273,9 +271,7 @@ public class LockSupport {
             setBlocker(t, blocker);
             try {
                 /* MODIFY START */
-                if(AdaptiveThreadFactory.existsAssociation(Thread.currentThread())) {
-                    AdaptiveThreadFactory.recordParking(Thread.currentThread());
-                }
+                AdaptiveThreadFactory.recordParkingIfExistsAssociation(Thread.currentThread());
                 /* MODIFY END */
                 if (t.isVirtual()) {
                     VirtualThreads.park(nanos);
@@ -326,9 +322,7 @@ public class LockSupport {
         setBlocker(t, blocker);
         try {
             /* MODIFY START */
-            if(AdaptiveThreadFactory.existsAssociation(Thread.currentThread())) {
-                AdaptiveThreadFactory.recordParking(Thread.currentThread());
-            }
+            AdaptiveThreadFactory.recordParkingIfExistsAssociation(Thread.currentThread());
             /* MODIFY END */
             if (t.isVirtual()) {
                 VirtualThreads.parkUntil(deadline);
@@ -385,9 +379,7 @@ public class LockSupport {
      */
     public static void park() {
         /* MODIFY START */
-        if(AdaptiveThreadFactory.existsAssociation(Thread.currentThread())) {
-            AdaptiveThreadFactory.recordParking(Thread.currentThread());
-        }
+        AdaptiveThreadFactory.recordParkingIfExistsAssociation(Thread.currentThread());
         /* MODIFY END */
         if (Thread.currentThread().isVirtual()) {
             VirtualThreads.park();
@@ -429,9 +421,7 @@ public class LockSupport {
     public static void parkNanos(long nanos) {
         if (nanos > 0) {
             /* MODIFY START */
-            if(AdaptiveThreadFactory.existsAssociation(Thread.currentThread())) {
-                AdaptiveThreadFactory.recordParking(Thread.currentThread());
-            }
+            AdaptiveThreadFactory.recordParkingIfExistsAssociation(Thread.currentThread());
             /* MODIFY END */
             if (Thread.currentThread().isVirtual()) {
                 VirtualThreads.park(nanos);
@@ -473,9 +463,7 @@ public class LockSupport {
      */
     public static void parkUntil(long deadline) {
         /* MODIFY START */
-        if(AdaptiveThreadFactory.existsAssociation(Thread.currentThread())) {
-            AdaptiveThreadFactory.recordParking(Thread.currentThread());
-        }
+        AdaptiveThreadFactory.recordParkingIfExistsAssociation(Thread.currentThread());
         /* MODIFY END */
         if (Thread.currentThread().isVirtual()) {
             VirtualThreads.parkUntil(deadline);

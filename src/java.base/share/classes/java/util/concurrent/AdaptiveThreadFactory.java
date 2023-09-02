@@ -5,6 +5,7 @@ import java.lang.reflect.Method;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadFactory;
@@ -507,18 +508,11 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
    *
    * @param thread Comment
    */
-  public static void recordParking(Thread thread) {
-    associations.get(thread).addParkingTime(System.nanoTime());
-  }
-
-  /**
-   * Comment
-   *
-   * @param thread Comment
-   * @return Comment
-   */
-  public static boolean existsAssociation(Thread thread) {
-    return associations.containsKey(thread);
+  public static void recordParkingIfExistsAssociation(Thread thread) {
+    AdaptiveThreadFactory adaptiveThreadFactory = associations.get(thread);
+    if(Objects.nonNull(adaptiveThreadFactory)) {
+      adaptiveThreadFactory.addParkingTime(System.nanoTime());
+    }
   }
 
   // Transitioning

@@ -357,7 +357,14 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
     ConcurrentLinkedQueue<Long> values,
     long lowerBound
   ) {
-    values.removeIf((Long value) -> value < lowerBound);
+    Iterator<Long> iterator = values.iterator();
+    while(iterator.hasNext()) {
+      if(iterator.next() < lowerBound) {
+        iterator.remove();
+      } else {
+        break;
+      }
+    }
     return values.size();
   }
 

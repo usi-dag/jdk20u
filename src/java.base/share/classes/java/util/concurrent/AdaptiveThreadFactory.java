@@ -37,7 +37,6 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
   // internal use
 
   private ConcurrentHashMap<Thread, Boolean> marks;
-  private ExecutionMode executionMode;
   private ThreadFactory platformThreadFactory;
   private ThreadFactory virtualThreadFactory;
   private Object operatingSystemMXBeanObject;
@@ -58,53 +57,6 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
   static {
     adaptiveThreadFactoryCounter = new AtomicInteger(0);
     associations = new ConcurrentHashMap<Thread, AdaptiveThreadFactory>();
-  }
-
-  // User specification
-
-  private class UserSpecificationRequirement {
-
-    private boolean condition;
-    private String message;
-
-    public UserSpecificationRequirement setCondition(boolean condition) {
-      this.condition = condition;
-      return this;
-    }
-
-    public UserSpecificationRequirement setMessage(String message) {
-      this.message = message;
-      return this;
-    }
-
-    public void check() {
-      if (!this.condition) {
-        throw new IllegalArgumentException(this.message);
-      }
-    }
-  }
-
-  private void validateUserSpecification() {
-    LinkedList<UserSpecificationRequirement> requirements = new LinkedList<UserSpecificationRequirement>();
-    requirements.add(
-      new UserSpecificationRequirement()
-        .setCondition(
-          (
-            this.stateQueryInterval.isPresent() &&
-            this.numberRecurrencesUntilTransition.isPresent()
-          ) ||
-          (
-            this.stateQueryInterval.isEmpty() &&
-            this.numberRecurrencesUntilTransition.isEmpty()
-          )
-        )
-        .setMessage(
-          "Either all or none of the parameters {stateQueryInterval, numberRecurrencesUntilTransition} must be set."
-        )
-    );
-    for (final UserSpecificationRequirement requirement : requirements) {
-      requirement.check();
-    }
   }
 
   // Initialisation
@@ -132,11 +84,8 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
     createCpuUsageSupplier();
     this.cpuUsageSamples = new ConcurrentLinkedQueue<Double>();
     if (homogeneousExecutionModeInEffect()) {
-      this.executionMode = ExecutionMode.HOMOGENEOUS;
       this.queryResults = new LinkedList<ThreadType>();
       this.currentThreadType = ThreadType.PLATFORM;
-    } else {
-      this.executionMode = ExecutionMode.HETEROGENEOUS;
     }
     startPeriodicallyActiveThreads();
   }
@@ -444,7 +393,6 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
     this.stateQueryInterval = stateQueryInterval;
     this.numberRecurrencesUntilTransition = numberRecurrencesUntilTransition;
     this.threadCreationHandler = threadCreationHandler;
-    validateUserSpecification();
     initialise();
   }
 
@@ -647,7 +595,12 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
    * @param stateQueryInterval Comment
    */
   public void setStateQueryInterval(int stateQueryInterval) {
+    boolean homogeneousExecutionModeInEffect = homogeneousExecutionModeInEffect();
     this.stateQueryInterval = Optional.of(stateQueryInterval);
+    if(!homogeneousExecutionModeInEffect && homogeneousExecutionModeInEffect()) {
+      this.currentThreadType = ThreadType.PLATFORM;
+      startTransitionManager();
+    }
   }
 
   /**
@@ -658,8 +611,13 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
   public void setNumberRecurrencesUntilTransition(
     int numberRecurrencesUntilTransition
   ) {
+    boolean homogeneousExecutionModeInEffect = homogeneousExecutionModeInEffect();
     this.numberRecurrencesUntilTransition =
       Optional.of(numberRecurrencesUntilTransition);
+    if(!homogeneousExecutionModeInEffect && homogeneousExecutionModeInEffect()) {
+      this.currentThreadType = ThreadType.PLATFORM;
+      startTransitionManager();
+    }
   }
 
   /**
@@ -669,6 +627,17 @@ public class AdaptiveThreadFactory implements ThreadFactory, AutoCloseable {
    */
   public void setThreadCreationHandler(Runnable threadCreationHandler) {
     this.threadCreationHandler = Optional.of(threadCreationHandler);
+  }
+
+  /**
+   * Comment
+   */
+  public void disableHomogeneousExecutionMode() {
+    this.stateQueryInterval = Optional.empty();
+    this.numberRecurrencesUntilTransition = Optional.empty();
+    this.threadCreationHandler = Optional.empty();
+    stopTransitionManager();
+    queryResults.clear();
   }
 
   // User specification
